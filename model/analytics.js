@@ -82,6 +82,21 @@ analytics.getTokenHistoryGrouped = function (req, res) {
         });
 }
 
+analytics.getBlocks = function (query, callback) {
+
+    let period = query.period || 90;
+    axios.get(`https://api.etherscan.io/api?module=proxy&action=eth_blockNumber`)
+        .then((response) => {
+            let endblock = parseInt(response.data.result, 16);
+            let startblock = endblock - (86400 * period) / 15;
+            console.log(startblock + "  " + endblock);
+            callback(null,{startblock, endblock});
+        })
+        .catch((err) => {
+            callback(err);
+        })
+}
+
 analytics.getAddressTransactions = async function (query, callback) {
     console.log(query);
     let address = query.address || '0x2a0c0dbecc7e4d658f48e01e3fa353f44050c208';
@@ -109,12 +124,12 @@ analytics.getAddressTransactions = async function (query, callback) {
             var totalBlocks = endblock - startblock;
             console.log(totalBlocks);
             apidata = [];
-            scanBlockRange(startblock, endblock, (err, res)=>{
+            scanBlockRange(startblock, endblock, (err, res) => {
                 // console.log(err);
                 // console.log(apidata);
                 let result = _.countBy(apidata, 'date')
                 // console.log(result);
-                sendCsvAsMail(query,result, email);
+                sendCsvAsMail(query, result, email);
                 // callback(null, res);
             });
         })
@@ -168,8 +183,6 @@ var getData = function (address, startblock, endblock, page, apidata, callback) 
         })
 }
 
-
-
 function scanTransactionCallback(txn, block) {
 
     //    console.log(JSON.stringify(block, null, 4));
@@ -186,22 +199,22 @@ function scanTransactionCallback(txn, block) {
         }
         apidata.push(obj);
     }
-        // if (txn.to && txn.to.toLowerCase() === wallet.toLowerCase()) {
+    // if (txn.to && txn.to.toLowerCase() === wallet.toLowerCase()) {
 
-        //     // A transaction credited ether into this wallet
-        //     console.log(`${block.timestamp} from ${txn.from}`);
+    //     // A transaction credited ether into this wallet
+    //     console.log(`${block.timestamp} from ${txn.from}`);
 
-        // } else if (txn.from && txn.from.toLowerCase() === wallet.toLowerCase()) {
+    // } else if (txn.from && txn.from.toLowerCase() === wallet.toLowerCase()) {
 
-        //     // A transaction debitted ether from this wallet
-        //     console.log(`${block.timestamp}  to ${txn.to}`);
+    //     // A transaction debitted ether from this wallet
+    //     console.log(`${block.timestamp}  to ${txn.to}`);
 
-        // }
-    }
+    // }
+}
 
 function scanBlockCallback(block) {
 
-    if (block.transactions) {
+    if (block && block.transactions) {
         for (var i = 0; i < block.transactions.length; i++) {
             var txn = block.transactions[i];
             scanTransactionCallback(txn, block);
@@ -242,10 +255,10 @@ function scanBlockRange(startingBlock, stoppingBlock, callback) {
         if (--numThreads == 0) {
             var numBlocksScanned = 1 + stoppingBlock - startingBlock,
                 stopTime = new Date(),
-                duration = (stopTime.getTime() - startTime.getTime())/1000,
+                duration = (stopTime.getTime() - startTime.getTime()) / 1000,
                 blocksPerSec = Math.floor(numBlocksScanned / duration, 2),
                 msg = `Scanned to block ${stoppingBlock} (${numBlocksScanned} in ${duration} seconds; ${blocksPerSec} blocks/sec).`;
-                console.log(msg);
+            console.log(msg);
             if (callback) {
                 callback(gotError, stoppingBlock);
             }
@@ -301,53 +314,56 @@ function scanBlockRange(startingBlock, stoppingBlock, callback) {
 }
 
 
-var sendCsvAsMail = function(query, response, email) {
+var sendCsvAsMail = function (query, response, email) {
 
-    const fields = ['date','count'];
-      const json2csvParser = new Json2csvParser({
+    const fields = ['date', 'count'];
+    const json2csvParser = new Json2csvParser({
         fields
-      });
-      const keys = Object.keys(response);
-      const values = Object.values(response);
-      let csvData = [];
-      let i=0;
-      keys.forEach((key)=>{
-        csvData.push({date:key,count:values[i]});
+    });
+    const keys = Object.keys(response);
+    const values = Object.values(response);
+    let csvData = [];
+    let i = 0;
+    keys.forEach((key) => {
+        csvData.push({
+            date: key,
+            count: values[i]
+        });
         i++;
-      });
-      const csv = json2csvParser.parse(csvData);
-      let token = query.address || 'file';
-      fs.writeFile(`${token}.csv`, csv, function (err) {
+    });
+    const csv = json2csvParser.parse(csvData);
+    let token = query.address || 'file';
+    fs.writeFile(`${token}.csv`, csv, function (err) {
         if (err) throw err;
 
         // fs.unlinkSync(`${token}.csv`);
-      });
+    });
     //   console.log(csv);
-      sendmail({
+    sendmail({
         from: 'report@hoyin.org',
         to: email,
         replyTo: 'vishal.dharmawat@gmail.com',
-        subject: 'Report for '+token,
+        subject: 'Report for ' + token,
         html: 'Please check the attachment..',
-        attachments: [
-          {   // utf-8 string as an attachment
+        attachments: [{ // utf-8 string as an attachment
             filename: `${token}.csv`,
             content: csv
-          }]
-        },null);
-    
+        }]
+    }, null);
+
 }
+
 function sendmail(obj) {
 
     var from_email = new helper.Email(obj.from);
     var to_email = new helper.Email(obj.to);
     var subject = obj.subject;
-    var content = new helper.Content('text/html',obj.html);
+    var content = new helper.Content('text/html', obj.html);
     var mail = new helper.Mail(from_email, subject, to_email, content);
-    obj.attachments.forEach((attachment)=>{
+    obj.attachments.forEach((attachment) => {
         let att = new helper.Attachment();
         console.log(attachment.content);
-        let content = new Buffer(attachment.content,'utf-8').toString('base64');
+        let content = new Buffer(attachment.content, 'utf-8').toString('base64');
         console.log(content);
         att.setContent(content);
         att.setDisposition('attachment');
@@ -372,5 +388,54 @@ function sendmail(obj) {
 
 }
 
+analytics.getBatchAddressTransactions = function (query, callback) {
+    console.log(query);
+    let address = query.address || '0x2a0c0dbecc7e4d658f48e01e3fa353f44050c208';
+    wallet = address;
+    // let page = query.page || 1;
+    // let offset = query.offset || 500;
+    let userkey = query.apikey;
+    let startblock = query.startblock || 0;
+    let endblock = query.endblock || 99999999;
+    console.log(userkey);
+    if (userkey === undefined || userkey === null || myApiKey.indexOf(userkey) == -1) {
+        console.log('Invalid key');
+        return callback({
+            msg: 'Invalid API Key!!',
+            data: null
+        });
+    }
+    apidata = [];
+    scanBlockRange(startblock, endblock, (err, res) => {
+        let result = _.countBy(apidata, 'date')
+        console.log(result);
+        callback(null, result);
+    })
+    // let root_url = 'http://api.etherscan.io/api?module=account&action=txlist&'
+    // let url = `${root_url}address=${address}&startblock=${startblock}&endblock=${endblock}&page=${page}&offset=${offset}&sort=asc`;
+    // console.log(url);
+    // axios.get(url)
+    //     .then((res) => {
+    //         if(res.data.status !== "0") {
+    //             let result = res.data.result.map(tx => {
+    //                 let date = new Date(tx.timeStamp * 1000);
+    //                 return {
+    //                     timestamp: tx.timeStamp,
+    //                     date: `${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`,
+    //                     from: tx.from,
+    //                     to: tx.to,
+    //                     value: tx.value
+    //                 }
+    //             });
+    //             let nextpage = parseInt(page) + 1;
+    //             callback(null, {result, nextpage});
+    //         } else {
+    //             callback(res.data);
+    //         }
+    //     })
+    //     .catch((err) => {
+    //         callback(err);
+    //     });
+}
 
 module.exports = analytics;

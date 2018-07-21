@@ -48,5 +48,50 @@ router.get('/getAddressTransactions', function (req, res, next) {
   });
   res.status(200).json({success:true,msg:'Response will be emailed!'});
 });
+router.get('/getBlocks', (req, res, next) => {
+  analytics.getBlocks(req.query, (err, response) => {
+    if (err != null) {
+      res.status(404).json({
+        success: false,
+        msg: "Error",
+        data: err
+      });
+    } else {
+      res.status(200).json({
+        success: true,
+        msg: 'Success',
+        data: response
+      });
+    }
+  });
+})
+
+router.get('/getBatchAddressTransactions',function(req, res, next) {
+  analytics.getBatchAddressTransactions(req.query, (err, response) => {
+    console.log(err);
+    if(err != null) {
+      if(err.status && err.status === "0") {
+        res.status(400).json({
+          success: false,
+          msg: err.message,
+          data: null
+        })
+      } else {
+        res.status(404).json({
+          success: false,
+          msg: "Error",
+          data: err
+        });
+      }
+    } else {
+      console.log('Response');
+      res.status(200).json({
+        success: true,
+        msg: 'Data received',
+        data: response
+      })
+    }
+  })
+})
 
 module.exports = router;
