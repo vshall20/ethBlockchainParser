@@ -17,7 +17,7 @@ let maxThreads = 200;
 
 let wallet = '';
 var apidata = [];
-
+var addressdata = {};
 var analytics = {};
 
 analytics.getTokenHistoryGrouped = function (req, res) {
@@ -184,11 +184,32 @@ var getData = function (address, startblock, endblock, page, apidata, callback) 
 }
 
 function scanTransactionCallback(txn, block) {
-
     //    console.log(JSON.stringify(block, null, 4));
     //    console.log(JSON.stringify(txn, null, 4));
 
-    if ((txn.to && txn.to.toLowerCase() === wallet.toLowerCase()) || (txn.from && txn.from.toLowerCase() === wallet.toLowerCase())) {
+    if(wallet === null) {
+        let date = new Date(block.timestamp * 1000);
+        let obj = {
+            timestamp: block.timestamp,
+            date: `${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`,
+            from: txn.from,
+            to: txn.to,
+            value: txn.value
+        }
+        let from = obj.from && obj.from.toLowerCase();
+        let to = obj.to && obj.to.toLowerCase();
+        if(addressdata[from] && addressdata[from].length > 0) {
+            addressdata[from].push(obj);
+        } else {
+            addressdata[from] = [obj];
+        }
+        if(addressdata[to]  && addressdata[to].length > 0) {
+            addressdata[to].push(obj);
+        } else {
+            addressdata[to] = [obj];
+        }
+    }
+    else if ((txn.to && txn.to.toLowerCase() === wallet.toLowerCase()) || (txn.from && txn.from.toLowerCase() === wallet.toLowerCase())) {
         let date = new Date(block.timestamp * 1000);
         let obj = {
             timestamp: block.timestamp,
@@ -219,12 +240,13 @@ function scanBlockCallback(block) {
             var txn = block.transactions[i];
             scanTransactionCallback(txn, block);
         }
+    } else {
+        console.log('No Transactions...');
     }
 }
 
 
 function scanBlockRange(startingBlock, stoppingBlock, callback) {
-
     // If they didn't provide an explicit stopping block, then read
     // ALL of the blocks up to the current one.
 
@@ -410,32 +432,33 @@ analytics.getBatchAddressTransactions = function (query, callback) {
         let result = _.countBy(apidata, 'date')
         console.log(result);
         callback(null, result);
-    })
-    // let root_url = 'http://api.etherscan.io/api?module=account&action=txlist&'
-    // let url = `${root_url}address=${address}&startblock=${startblock}&endblock=${endblock}&page=${page}&offset=${offset}&sort=asc`;
-    // console.log(url);
-    // axios.get(url)
-    //     .then((res) => {
-    //         if(res.data.status !== "0") {
-    //             let result = res.data.result.map(tx => {
-    //                 let date = new Date(tx.timeStamp * 1000);
-    //                 return {
-    //                     timestamp: tx.timeStamp,
-    //                     date: `${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`,
-    //                     from: tx.from,
-    //                     to: tx.to,
-    //                     value: tx.value
-    //                 }
-    //             });
-    //             let nextpage = parseInt(page) + 1;
-    //             callback(null, {result, nextpage});
-    //         } else {
-    //             callback(res.data);
-    //         }
-    //     })
-    //     .catch((err) => {
-    //         callback(err);
-    //     });
+    });
+}
+
+analytics.getAllAddressTransactions = function(query, callback) {
+    console.log(query);
+    wallet = null;
+    let userkey = query.apikey;
+    let startblock = query.startblock || 0;
+    let endblock = query.endblock || 99999999;
+    console.log(userkey);
+    if (userkey === undefined || userkey === null || myApiKey.indexOf(userkey) == -1) {
+        console.log('Invalid key');
+        return callback({
+            msg: 'Invalid API Key!!',
+            data: null
+        });
+    }
+    addressdata = {};
+    scanBlockRange(startblock, endblock, (err, res) => {
+        // console.log(addressdata);
+        let finalResult = {};
+        Object.entries(addressdata).forEach(([key, value]) => {
+            let result = _.countBy(value, 'date')
+            finalResult[key] = result;
+        });
+        callback(null, finalResult);
+    });
 }
 
 module.exports = analytics;

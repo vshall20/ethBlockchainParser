@@ -89,9 +89,37 @@ router.get('/getBatchAddressTransactions',function(req, res, next) {
         success: true,
         msg: 'Data received',
         data: response
-      })
+      });
     }
-  })
-})
+  });
+});
+
+router.get('/getAllAddressTransactions',function(req, res, next) {
+  analytics.getAllAddressTransactions(req.query, (err, response) => {
+    console.log(err);
+    if(err != null) {
+      if(err.status && err.status === "0") {
+        res.status(400).json({
+          success: false,
+          msg: err.message,
+          data: null
+        })
+      } else {
+        res.status(404).json({
+          success: false,
+          msg: "Error",
+          data: err
+        });
+      }
+    } else {
+      console.log('Response');
+      res.status(200).json({
+        success: true,
+        msg: 'Data received',
+        data: response
+      });
+    }
+  });
+});
 
 module.exports = router;
