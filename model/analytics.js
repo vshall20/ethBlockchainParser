@@ -192,6 +192,7 @@ function scanTransactionCallback(txn, block) {
         let obj = {
             timestamp: block.timestamp,
             date: `${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`,
+            week: `Week ${date.getWeekNumber()}`,
             from: txn.from,
             to: txn.to,
             value: txn.value
@@ -214,6 +215,7 @@ function scanTransactionCallback(txn, block) {
         let obj = {
             timestamp: block.timestamp,
             date: `${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`,
+            week: `Week ${date.getWeekNumber()}`,
             from: txn.from,
             to: txn.to,
             value: txn.value
@@ -232,6 +234,14 @@ function scanTransactionCallback(txn, block) {
 
     // }
 }
+
+Date.prototype.getWeekNumber = function(){
+    var d = new Date(Date.UTC(this.getFullYear(), this.getMonth(), this.getDate()));
+    var dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1)/7)
+  };
 
 function scanBlockCallback(block) {
 
@@ -454,7 +464,7 @@ analytics.getAllAddressTransactions = function(query, callback) {
         // console.log(addressdata);
         let finalResult = {};
         Object.entries(addressdata).forEach(([key, value]) => {
-            let result = _.countBy(value, 'date')
+            let result = _.countBy(value, 'week') //week: `Week ${date.getWeekNumber()}`,
             finalResult[key] = result;
         });
         callback(null, finalResult);
