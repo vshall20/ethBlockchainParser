@@ -1,4 +1,5 @@
-const BASE_URL = 'http://35.174.108.24:3000';
+// const BASE_URL = 'http://35.174.108.24:3000';
+const BASE_URL = 'http://localhost:3000';
 let address;
 const INCREMENT = 100;
 const BLOCK_LIMIT = 1000;
@@ -7,6 +8,7 @@ let endblock = 999999;
 let period;
 let start = startblock;
 let end = startblock + BLOCK_LIMIT;
+let emailAddress = '';
 let finalResult = {};
 
 let headers = [];
@@ -140,11 +142,28 @@ function downloadAllData(start, end) {
                     downloadAllData(start, end);
                 } else {
                     console.log('Download Complete');
-                    JSONToCSVConvertorAll(finalResult, "AllAddressData");
+                    // JSONToCSVConvertorAll(finalResult, "AllAddressData");
+                    let email = 'vishal.dharmawat@gmail.com';
+                    emailAddress = email;
+                    getEmail(email, startblock, endblock);
                     resetVariables();
                 }
             }
         })
+}
+
+function getEmail(email, start, end) {
+    $.get(`${BASE_URL}/analytics/getEmail?apikey=hoyinfree&startblock=${start}&endblock=${end}&email=${email}`,
+        (data, status) => {
+            console.log(data);
+            console.log(status);
+            if (status === 'success') {
+                console.log($('#message'));
+                showAlert('Email sent successfully to '+email);
+                console.log(data);
+
+            }
+        });
 }
 
 function resetVariables() {

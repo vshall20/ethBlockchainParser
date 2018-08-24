@@ -122,4 +122,32 @@ router.get('/getAllAddressTransactions',function(req, res, next) {
   });
 });
 
+router.get('/getEmail', function(req, res, next) {
+  analytics.getEmail(req.query, (err, response) => {
+    console.log(err);
+    if(err != null) {
+      if(err.status && err.status === "0") {
+        res.status(400).json({
+          success: false,
+          msg: err.message,
+          data: null
+        })
+      } else {
+        res.status(404).json({
+          success: false,
+          msg: "Error",
+          data: err
+        });
+      }
+    } else {
+      console.log('Response');
+      res.status(200).json({
+        success: true,
+        msg: 'Email sent to'+req.query.email,
+        data: response
+      });
+    }
+  })
+})
+
 module.exports = router;

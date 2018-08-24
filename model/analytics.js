@@ -2,7 +2,7 @@ const axios = require('axios');
 var Web3 = require('web3');
 const myApiKey = ['hoyinfree'];
 var helper = require('sendgrid').mail;
-
+var transactions = require('./transactions');
 const Json2csvParser = require('json2csv').Parser;
 const fs = require('fs');
 var _ = require('lodash');
@@ -90,7 +90,10 @@ analytics.getBlocks = function (query, callback) {
             let endblock = parseInt(response.data.result, 16);
             let startblock = endblock - (86400 * period) / 15;
             console.log(startblock + "  " + endblock);
-            callback(null,{startblock, endblock});
+            callback(null, {
+                startblock,
+                endblock
+            });
         })
         .catch((err) => {
             callback(err);
@@ -187,30 +190,69 @@ function scanTransactionCallback(txn, block) {
     //    console.log(JSON.stringify(block, null, 4));
     //    console.log(JSON.stringify(txn, null, 4));
 
-    if(wallet === null) {
+    if (wallet === null) {
         let date = new Date(block.timestamp * 1000);
+        let from = txn.from && txn.from.toLowerCase() || '0x0';
+        let to = txn.to && txn.to.toLowerCase() || '0x0';
         let obj = {
+            blockNumber: txn.blockNumber,
             timestamp: block.timestamp,
             date: `${date.getDate()}-${date.getMonth()+1}-${date.getFullYear()}`,
-            week: `Week ${date.getWeekNumber()}`,
-            from: txn.from,
-            to: txn.to,
-            value: txn.value
+            week: `${date.getWeekNumber()}`,
+            from: from,
+            to: to,
+            value: txn.value,
+            txHash: txn.hash
         }
-        let from = obj.from && obj.from.toLowerCase();
-        let to = obj.to && obj.to.toLowerCase();
-        if(addressdata[from] && addressdata[from].length > 0) {
+        let fromtransaction = new transactions({
+            forAddress:from,
+            blockNumber: obj.blockNumber,
+            fromAddress: obj.from,
+            toAddress: obj.to,
+            transactionHash: obj.txHash,
+            timestamp: obj.timestamp,
+            value: obj.value,
+            week: obj.week,
+            date: obj.date
+        });
+        fromtransaction.save((err, trans) => {
+            if (err) {
+                console.log(err);
+            } else {
+                // console.log(trans);
+            }
+        });
+
+        let totransaction = new transactions({
+            forAddress:to,
+            blockNumber: obj.blockNumber,
+            fromAddress: obj.from,
+            toAddress: obj.to,
+            transactionHash: "to"+obj.txHash,
+            timestamp: obj.timestamp,
+            value: obj.value,
+            week: obj.week,
+            date: obj.date
+        });
+        totransaction.save((err, trans) => {
+            if (err) {
+                console.log(err);
+            } else {
+                // console.log(trans);
+            }
+        });
+
+        if (addressdata[from] && addressdata[from].length > 0) {
             addressdata[from].push(obj);
         } else {
             addressdata[from] = [obj];
         }
-        if(addressdata[to]  && addressdata[to].length > 0) {
+        if (addressdata[to] && addressdata[to].length > 0) {
             addressdata[to].push(obj);
         } else {
             addressdata[to] = [obj];
         }
-    }
-    else if ((txn.to && txn.to.toLowerCase() === wallet.toLowerCase()) || (txn.from && txn.from.toLowerCase() === wallet.toLowerCase())) {
+    } else if ((txn.to && txn.to.toLowerCase() === wallet.toLowerCase()) || (txn.from && txn.from.toLowerCase() === wallet.toLowerCase())) {
         let date = new Date(block.timestamp * 1000);
         let obj = {
             timestamp: block.timestamp,
@@ -235,13 +277,13 @@ function scanTransactionCallback(txn, block) {
     // }
 }
 
-Date.prototype.getWeekNumber = function(){
+Date.prototype.getWeekNumber = function () {
     var d = new Date(Date.UTC(this.getFullYear(), this.getMonth(), this.getDate()));
     var dayNum = d.getUTCDay() || 7;
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
-    return Math.ceil((((d - yearStart) / 86400000) + 1)/7)
-  };
+    var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
+};
 
 function scanBlockCallback(block) {
 
@@ -348,23 +390,26 @@ function scanBlockRange(startingBlock, stoppingBlock, callback) {
 
 var sendCsvAsMail = function (query, response, email) {
 
-    const fields = ['date', 'count'];
+    const fields = ['address','week', 'count'];
     const json2csvParser = new Json2csvParser({
         fields
     });
+    console.log('******');
+    console.log(response);
     const keys = Object.keys(response);
     const values = Object.values(response);
     let csvData = [];
-    let i = 0;
-    keys.forEach((key) => {
+
+    response.forEach((entry) => {
         csvData.push({
-            date: key,
-            count: values[i]
+            address: entry.address,
+            week: entry.week,
+            count: entry.transaction_count
         });
-        i++;
     });
     const csv = json2csvParser.parse(csvData);
-    let token = query.address || 'file';
+    console.log(csv);
+    let token = 'file';
     fs.writeFile(`${token}.csv`, csv, function (err) {
         if (err) throw err;
 
@@ -445,7 +490,7 @@ analytics.getBatchAddressTransactions = function (query, callback) {
     });
 }
 
-analytics.getAllAddressTransactions = function(query, callback) {
+analytics.getAllAddressTransactions = function (query, callback) {
     console.log(query);
     wallet = null;
     let userkey = query.apikey;
@@ -462,13 +507,76 @@ analytics.getAllAddressTransactions = function(query, callback) {
     addressdata = {};
     scanBlockRange(startblock, endblock, (err, res) => {
         // console.log(addressdata);
+
+        /**
+         * { 
+    $group: { // each position and age group have an array of jerseys
+      _id:   { position: "$position", ageGroup: "$ageGroup" }, 
+      jerseys: { $push: "$$ROOT" } 
+    } 
+  }, 
+  { 
+    $group: { // for each age group, create an array of positions
+      _id: { ageGroup: "$_id.ageGroup" }, 
+      positions: { $push: { position: "$_id.position", jerseys:"$jerseys" } } 
+    } 
+  } 
+         */
         let finalResult = {};
-        Object.entries(addressdata).forEach(([key, value]) => {
-            let result = _.countBy(value, 'week') //week: `Week ${date.getWeekNumber()}`,
-            finalResult[key] = result;
-        });
+        // Object.entries(addressdata).forEach(([key, value]) => {
+        //     let result = _.countBy(value, 'week') //week: `Week ${date.getWeekNumber()}`,
+        //     finalResult[key] = result;
+        // });
+        // console.log(finalResult);
         callback(null, finalResult);
     });
+}
+
+analytics.getEmail = (query, callback) => {
+    let email = query.email,
+        start = query.startblock,
+        end = query.endblock;
+    
+    let userkey = query.apikey;
+
+    if (userkey === undefined || userkey === null || myApiKey.indexOf(userkey) == -1) {
+        console.log('Invalid key');
+        return callback({
+            msg: 'Invalid API Key!!',
+            data: null
+        });
+    }
+
+    transactions.aggregate([
+        {
+            $group: {
+                _id: {
+                    address: "$forAddress",
+                    week: "$week"
+                },
+                transaction_count: {
+                    $sum: 1
+                }
+            }
+        }, {
+            $project: {
+                _id:0,
+                address:'$_id.address',
+                week: '$_id.week',
+                transaction_count: '$transaction_count'
+            }
+        }
+    ], (err, trans) => {
+        if (err || trans & trans.length == 0) {
+            console.log(err);
+            callback(err, null);
+        } else {
+            console.log(trans);
+            sendCsvAsMail(null, trans, email)
+            callback(null, 'Email');
+        }
+    })
+
 }
 
 module.exports = analytics;
