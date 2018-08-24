@@ -1,5 +1,5 @@
-// const BASE_URL = 'http://35.174.108.24:3000';
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = 'http://35.174.108.24:3000';
+// const BASE_URL = 'http://localhost:3000';
 let address;
 const INCREMENT = 100;
 const BLOCK_LIMIT = 1000;
@@ -143,7 +143,7 @@ function downloadAllData(start, end) {
                 } else {
                     console.log('Download Complete');
                     // JSONToCSVConvertorAll(finalResult, "AllAddressData");
-                    let email = 'vishal.dharmawat@gmail.com';
+                    let email = 'hoyin@riotlysocial.com';
                     emailAddress = email;
                     getEmail(email, startblock, endblock);
                     resetVariables();
