@@ -450,7 +450,7 @@ function sendmail(obj) {
         mail.addAttachment(att);
     });
 
-    var sg = require('sendgrid')('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');
+    var sg = require('sendgrid')(process.env.SENDGRID_API_KEY);
     var request = sg.emptyRequest({
         method: 'POST',
         path: '/v3/mail/send',
