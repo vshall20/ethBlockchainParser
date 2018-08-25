@@ -1,5 +1,5 @@
-const BASE_URL = 'http://35.174.108.24:3000';
-// const BASE_URL = 'http://localhost:3000';
+// const BASE_URL = 'http://35.174.108.24:3000';
+const BASE_URL = 'http://localhost:3000';
 let address;
 const INCREMENT = 100;
 const BLOCK_LIMIT = 1000;

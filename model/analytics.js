@@ -205,7 +205,7 @@ function scanTransactionCallback(txn, block) {
             txHash: txn.hash
         }
         let fromtransaction = new transactions({
-            forAddress:from,
+            forAddress: from,
             blockNumber: obj.blockNumber,
             fromAddress: obj.from,
             toAddress: obj.to,
@@ -224,11 +224,11 @@ function scanTransactionCallback(txn, block) {
         });
 
         let totransaction = new transactions({
-            forAddress:to,
+            forAddress: to,
             blockNumber: obj.blockNumber,
             fromAddress: obj.from,
             toAddress: obj.to,
-            transactionHash: "to"+obj.txHash,
+            transactionHash: "to" + obj.txHash,
             timestamp: obj.timestamp,
             value: obj.value,
             week: obj.week,
@@ -390,12 +390,12 @@ function scanBlockRange(startingBlock, stoppingBlock, callback) {
 
 var sendCsvAsMail = function (query, response, email) {
 
-    const fields = ['address','week', 'count'];
+    const fields = ['address', 'week', 'count'];
     const json2csvParser = new Json2csvParser({
         fields
     });
     console.log('******');
-    console.log(response);
+    // console.log(response);
     const keys = Object.keys(response);
     const values = Object.values(response);
     let csvData = [];
@@ -408,7 +408,7 @@ var sendCsvAsMail = function (query, response, email) {
         });
     });
     const csv = json2csvParser.parse(csvData);
-    console.log(csv);
+    // console.log(csv);
     let token = 'file';
     fs.writeFile(`${token}.csv`, csv, function (err) {
         if (err) throw err;
@@ -439,18 +439,18 @@ function sendmail(obj) {
     var mail = new helper.Mail(from_email, subject, to_email, content);
     obj.attachments.forEach((attachment) => {
         let att = new helper.Attachment();
-        console.log(attachment.content);
+        // console.log(attachment.content);
         let content = new Buffer(attachment.content, 'utf-8').toString('base64');
-        console.log(content);
+        // console.log(content);
         att.setContent(content);
         att.setDisposition('attachment');
         att.setContentId('myTempId');
         att.setFilename(attachment.filename);
-        console.log(att);
+        // console.log(att);
         mail.addAttachment(att);
     });
 
-    var sg = require('sendgrid')(process.env.SENDGRID_API_KEY);
+    var sg = require('sendgrid')('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');
     var request = sg.emptyRequest({
         method: 'POST',
         path: '/v3/mail/send',
@@ -462,6 +462,19 @@ function sendmail(obj) {
         console.log(response.body);
         console.log(response.headers);
     });
+
+
+    // const sgMail = require('@sendgrid/mail');
+    // console.log('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')
+    // sgMail.setApiKey('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');
+    // const msg = {
+    //     to: 'vishal.dharmawat@gmail.com',
+    //     from: 'report@hoyin.org',
+    //     subject: 'Sending with SendGrid is Fun',
+    //     text: 'and easy to do anywhere, even with Node.js',
+    //     html: '<strong>and easy to do anywhere, even with Node.js</strong>',
+    // };
+    // sgMail.send(msg);
 
 }
 
@@ -536,7 +549,7 @@ analytics.getEmail = (query, callback) => {
     let email = query.email,
         start = query.startblock,
         end = query.endblock;
-    
+
     let userkey = query.apikey;
 
     if (userkey === undefined || userkey === null || myApiKey.indexOf(userkey) == -1) {
@@ -547,26 +560,24 @@ analytics.getEmail = (query, callback) => {
         });
     }
 
-    transactions.aggregate([
-        {
-            $group: {
-                _id: {
-                    address: "$forAddress",
-                    week: "$week"
-                },
-                transaction_count: {
-                    $sum: 1
-                }
-            }
-        }, {
-            $project: {
-                _id:0,
-                address:'$_id.address',
-                week: '$_id.week',
-                transaction_count: '$transaction_count'
+    transactions.aggregate([{
+        $group: {
+            _id: {
+                address: "$forAddress",
+                week: "$week"
+            },
+            transaction_count: {
+                $sum: 1
             }
         }
-    ], (err, trans) => {
+    }, {
+        $project: {
+            _id: 0,
+            address: '$_id.address',
+            week: '$_id.week',
+            transaction_count: '$transaction_count'
+        }
+    }], (err, trans) => {
         if (err || trans & trans.length == 0) {
             console.log(err);
             callback(err, null);
