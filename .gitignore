@@ -4,3 +4,4 @@ nohup.out
 npm-debug.log
 
 sendgrid.env
+base_url.env
